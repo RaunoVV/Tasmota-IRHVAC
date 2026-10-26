@@ -40,6 +40,10 @@ You can also remove all lines that doesn’t need to be changed and are marked w
 Change the *name* with the desired name.
 After you finish with the config, save it and restart Home Assistant. Once restarted you can add in LovelaceUI a new *thermostat card* and select the newly integrated AC.
 
+For heat pumps with a native winter standby function, see the optional
+[Frost protection and Comfort presets](docs/frost-protection.md). This uses a
+verified device-specific command instead of an ordinary Away temperature setback.
+
 This is a pic of 2 of my Tasmota IR transceivers, that I have mounted under my ACs so when using the ACs remote they have direct visual and update the state in Home Assistant (yes, it can do that too).
 
 ![image2](/images/multisensors.jpeg)
