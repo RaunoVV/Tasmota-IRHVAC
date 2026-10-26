@@ -63,12 +63,11 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import cached_property, callback
-from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import event as ha_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .presets import FROST_SCHEMA, ClimatePresets, valid_temperature
+from .presets import FROST_SCHEMA, ClimatePresets
 
 from .const import (
     ATTR_BEEP,
@@ -757,7 +756,7 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                     if self._attr_hvac_mode == HVACAction.FAN:
                         self._attr_hvac_mode = HVACMode.FAN_ONLY
                 if "Temp" in payload:
-                    if valid_temperature(payload["Temp"]) and payload["Temp"] > 0:
+                    if payload["Temp"] > 0:
                         if not (self.power_mode == STATE_OFF and self._ignore_off_temp):
                             self._attr_target_temperature = payload["Temp"]
                 if "Celsius" in payload:
@@ -1228,8 +1227,6 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         if self._presets:
             await self._presets.set_preset(preset_mode)
             return
-        if preset_mode == PRESET_AWAY and self._away_temp is None:
-            raise ServiceValidationError("Away requires away_temp")
         if preset_mode == PRESET_AWAY and not self._is_away:
             self._is_away = True
             self._saved_target_temp = self._attr_target_temperature

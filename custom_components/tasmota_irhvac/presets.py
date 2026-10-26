@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import logging
 import math
 
 import voluptuous as vol
@@ -17,7 +16,6 @@ from homeassistant.components.climate.const import (
 from homeassistant.exceptions import ServiceValidationError
 
 PRESET_FROST = "Frost protection"
-_LOGGER = logging.getLogger(__name__)
 
 
 def valid_temperature(value):
@@ -101,8 +99,6 @@ class ClimatePresets:
         self.match_state = config.get("match_state", {})
         if self.command == "econo" and entity._vendor != "GREE":
             raise ValueError("The econo frost command is only configured for GREE")
-        if self.command == "irsend" and (not self.topic or not self.payload):
-            raise ValueError("irsend frost protection requires topic and payload")
         if self.payload and self.payload["Protocol"] != entity._vendor:
             raise ValueError("Frost payload protocol must match the climate vendor")
         if not self._normal_temperature(self.comfort_temperature):
@@ -176,11 +172,6 @@ class ClimatePresets:
             e._econo = "off"
 
     def prepare_temperature(self, temperature, hvac_mode):
-        if not self._normal_temperature(temperature):
-            raise ServiceValidationError(
-                "Choose a normal target inside min_temp/max_temp; "
-                "use the Frost protection preset for winter standby"
-            )
         was_active = self.active
         self.leave()
         self.normal_target = temperature
@@ -257,14 +248,6 @@ class ClimatePresets:
             if self.command == "econo":
                 e._econo = "off"
 
-        _LOGGER.info(
-            "%s presets ready: mode=%s preset=%s target=%s",
-            e.name,
-            e._attr_hvac_mode,
-            e._attr_preset_mode,
-            e._attr_target_temperature,
-        )
-
     def feedback(self, message, payload):
         """Recognize native frost frames and reconcile ordinary remote changes."""
         e = self.entity
@@ -273,26 +256,20 @@ class ClimatePresets:
         power = str(payload.get("Power", e.power_mode)).lower()
         mode = str(payload.get("Mode", e._attr_hvac_mode)).lower()
         temperature = payload.get("Temp")
-        if "Power" in payload and power == "off":
-            self.leave()
-            e._attr_hvac_mode = HVACMode.OFF
-            e.power_mode = "off"
-            e._enabled = False
-            return
         raw_frost = False
         if self.payload and message.get("Protocol") == self.payload["Protocol"]:
             data = str(message.get("Data", "")).lower().removeprefix("0x")
             raw_frost = data == self.payload["Data"].lower().removeprefix("0x")
-        if raw_frost:
-            self.activate(remember=False)
-            return
-        if not payload:
-            return
-        if power == "off":
+        if power == "off" and ("Power" in payload or not raw_frost):
             self.leave()
             e._attr_hvac_mode = HVACMode.OFF
             e.power_mode = "off"
             e._enabled = False
+            return
+        if raw_frost:
+            self.activate(remember=False)
+            return
+        if not payload:
             return
         is_frost = (
             self.command == "econo"
